@@ -1,4 +1,4 @@
-# aph-prism-highlighter
+# APH PRISM HIGHLIGHTER
 Bringing prism syntax highlighter into Wordpress easily
 
 Prism is one of the most popular syntax highlighters that widely used by a lot of blog or websites, some of them are popular websites, such as Mozilla, drupal, and SitePoint.
