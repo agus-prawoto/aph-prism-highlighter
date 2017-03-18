@@ -1,0 +1,8 @@
+'coy' => 'Coy',
+'dark' => 'Dark',
+'funky' => 'Funky',
+'okaidia' => 'Okaidia',
+'solarizedlight' => 'Solarizedlight',
+'tomorrow' => 'Tomorrow',
+'twilight' => 'Twilight',
+'' => '',
