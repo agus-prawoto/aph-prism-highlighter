@@ -125,7 +125,9 @@ class Aphph_Admin
 												'vim' => 'Vim',
 												'wiki' => 'Wiki Markup',
 												'xojo' => 'Xojo (REAL Basic)',
-												'yaml' => 'YAML'
+												'yaml' => 'YAML',
+												'adddarkplain' => 'Dark Plain', 
+												'addlightplain' => 'Light Plain'
 											),
 							'themes'	=>	array(
 												'default' => 'Default',
@@ -148,7 +150,9 @@ class Aphph_Admin
 													'css',
 													'javascript',
 													'sass',
-													'sql'
+													'sql',
+													'adddarkplain',
+													'addlightplain'
 												),
 									'default-lang' => 'php',
 									'max-height' => '480',
@@ -166,31 +170,83 @@ class Aphph_Admin
 	
 	private $options;
 	private $options_phdata;
+	private $admin_notices;
 	
     public function __construct()
     {
+		$this->admin_notices = new Aphph_Admin_Notices;
 		$this->options = get_option( APHPH_OPTION, array() );
 		$this->options_phdata = get_option( APHPH_OPTION_PHDATA, array() );
-		
+				
 		register_activation_hook ( APHPH_PLUGIN_PATH . APHPH_DS . APHPH_PLUGIN_FILE_NAME, array($this, 'activate_plugin') );
 		
 		add_action( 'admin_init', array( $this, 'page_init' ) );
 		add_action( 'admin_menu', array( $this, 'add_plugin_page' ) );
 		add_filter( 'plugin_action_links', array($this, 'action_link'), 10, 5);
 		add_action( 'admin_enqueue_scripts', array($this, 'register_scripts') );
-		
 		add_action( 'updated_option', array($this, 'build_files'), 10, 3); 
-
-		// add_action( 'admin_notices', array( $this, 'adminNotices' ), 1 );
+		add_action( 'plugins_loaded', array($this, 'check_update') );
+		
+		// AJAX
+		add_action( 'wp_ajax_nopriv_aphph-dismiss-notice' , array( $this , 'ajax_no_priv' ) );
+		add_action( 'wp_ajax_aphph-dismiss-notice', array($this, 'ajax_dismiss_notice') );
     }
+	
+	public function ajax_no_priv()
+	{
+		// echo 'xxx';  die;
+		
+	}
+	
+	// When the close button is clicked 
+	public function ajax_dismiss_notice()
+	{
+		$check = wp_verify_nonce($_POST['nonce'], 'aphph-admin-all');
+		if ($check)
+		{
+			
+			$this->admin_notices->delete_notice($_POST['msg']);
+		}
+		wp_send_json_success(
+			array(
+				'msg' => 'success',
+				'check' => $check
+			)
+		);
+	}
+	
+	public function page_init()
+    {
+		register_setting(
+            'aphph_option_group', // Option group
+            APHPH_OPTION,
+			array ($this, 'submit_validation')
+        );
+	}
 	
 	public function activate_plugin()
 	{
-		if (!$this->options) {
+		if (!$this->options) 
+		{
 			update_option(APHPH_OPTION, $this->data_options);
 			update_option(APHPH_OPTION_VERSION, APHPH_PLUGIN_VERSION);
 			update_option(APHPH_OPTION_PHDATA, $this->default_param);
 			add_action('wp_head', array($this, 'build_files'));
+		}	
+	}
+	
+	public function check_update() 
+	{
+		$plugin_option_version = get_option( APHPH_OPTION_VERSION, '0' );
+		if (version_compare(APHPH_PLUGIN_VERSION, $plugin_option_version) > 0)
+		{
+			update_option(APHPH_OPTION_VERSION, APHPH_PLUGIN_VERSION);
+			update_option(APHPH_OPTION_PHDATA, $this->default_param);
+			if (!$plugin_option_version || $plugin_option_version < 1.2)
+			{
+				$msg = 'APH PRISM HIGHLIGHTER v' . APHPH_PLUGIN_VERSION . ' Language added: Dark Plain and Light Plain';
+				$this->admin_notices->add_notice($msg, 'success', false, true);
+			}				
 		}
 	}
 	
@@ -203,7 +259,19 @@ class Aphph_Admin
 			wp_enqueue_script('aphph-taboverride', APHPH_PLUGIN_URL . '/js/taboverride/taboverride.min.js', '', APHPH_PLUGIN_VERSION);
 			wp_enqueue_script('aphph-prism-components', APHPH_PLUGIN_URL . '/includes/prism/components.js?rand='.time(), '', APHPH_PLUGIN_VERSION);
 			wp_enqueue_script('aphph-admin', APHPH_PLUGIN_URL . '/js/aphph-admin.js?rand='.time(), 'aphph-prism-components', APHPH_PLUGIN_VERSION);
+			
 		}
+		
+		wp_enqueue_script('aphph-admin-all', APHPH_PLUGIN_URL . '/js/aphph-admin-all.js?rand='.time(), '', APHPH_PLUGIN_VERSION);
+		wp_localize_script (
+			'aphph-admin-all', 
+			'aphph', 
+			array(
+				'nonce'	=> wp_create_nonce('aphph-admin-all'),
+				'ajaxurl' => admin_url('admin-ajax.php')
+				
+			)
+		);
 	}
 	
 	/**
@@ -360,28 +428,22 @@ class Aphph_Admin
         <?php
     }
 	
-	public function page_init()
-    {    
-		register_setting(
-            'aphph_option_group', // Option group
-            APHPH_OPTION,
-			array ($this, 'submit_validation')
-        );
-	}
-	
 	public function option_language_list() {
 	
 		$lang_used = $this->options['lang-used'];
-		
 		echo '<div class="aphph-langused-container aphph-clearfix" id="aphph-langused-container">';
-		
+
 		foreach ($lang_used as $lang)
 		{
 			$lang_name = $this->options_phdata['lang-list'][$lang];
 			$file_name = 'prism-'.$lang.'.min.js';
 			
 			$msg = '';
-			if (!file_exists(APHPH_PLUGIN_PATH . APHPH_DS . 'includes' . APHPH_DS . 'prism' . APHPH_DS . 'components' . APHPH_DS . $file_name))
+			
+			// Check built in language javascript files
+			if (substr($lang, 0, 3) != 'add' 
+					&& !file_exists(APHPH_PLUGIN_PATH . APHPH_DS . 'includes' . APHPH_DS . 'prism' . APHPH_DS . 'components' . APHPH_DS . $file_name)
+				)
 			{
 				$msg = '<span class="description">File ' . $file_name . ' not exists</span>';
 			}
@@ -397,8 +459,11 @@ class Aphph_Admin
 				</div>' . $msg;
 		}
 		echo '</div>
-			<a class="button" href="#" id="aphph-show-lang">Add Language</a> <a class="button" href="#" id="aphph-delall-langused">Remove All</a>
-		<div class="aphph-langlist-container" id="aphph-langlist-container">';
+			<a class="button" href="#" id="aphph-show-lang">Add Language</a>
+			<a class="button" href="#" id="aphph-delall-langused">Remove All</a>';
+			
+		// Built in languages
+		echo '<div class="aphph-langlist-container" id="aphph-langlist-container">';
 		
 		$lang_list = $this->options_phdata['lang-list'];
 		unset($lang_list['core']);
@@ -406,13 +471,22 @@ class Aphph_Admin
 				<input  class="aphph-langlist-item" type="checkbox" name="core" id="aphph-langlist-core" value="core" checked="checked" disabled="disabled"/>
 				Core
 			</label><hr/>';
+					
+		// Languages
 		foreach ($lang_list as $lang_key => $lang_name)
 		{
-			$file_name = 'prism-'.$lang_key.'.min.js';
 			$msg = '';
-			if (!file_exists(APHPH_PLUGIN_PATH . APHPH_DS . 'includes' . APHPH_DS . 'prism' . APHPH_DS . 'components' . APHPH_DS . $file_name))
-			{
-				$msg = '<span class="description">File ' . $file_name . ' not exists</span>';
+		
+			// Built in language 
+			if (substr($lang_key, 0, 3) != 'add')
+			{	
+				
+				$file_name = 'prism-'.$lang_key.'.min.js';
+				
+				if (!file_exists(APHPH_PLUGIN_PATH . APHPH_DS . 'includes' . APHPH_DS . 'prism' . APHPH_DS . 'components' . APHPH_DS . $file_name))
+				{
+					$msg = '<span class="description">File ' . $file_name . ' not exists</span>';
+				}
 			}
 			$checked = in_array($lang_key, $lang_used) ? ' checked="checked"' : '';
 			echo '
@@ -423,6 +497,9 @@ class Aphph_Admin
 		}
 		
 		echo '</div>';
+		
+		// Additional language
+		
 	}
 	
 	public function option_default_language() {
@@ -516,113 +593,8 @@ class Aphph_Admin
 	
 	public function build_files()
 	{
-		$options = get_option(APHPH_OPTION);
-		$token = $options['token'];
-		
-		// Build prism with selected lang
-		$path = APHPH_PLUGIN_PATH . APHPH_DS . 'includes' . APHPH_DS . 'prism' . APHPH_DS;
-		// $scripts = file_get_contents($path . 'prism.js') . ';';
-		
-		$scripts = '';
-		foreach ($options['lang-used'] as $lang) {
-			$scripts .= file_get_contents($path . 'components' . APHPH_DS . 'prism-'.$lang.'.min.js') . ';';
-		}
-		
-		/**
-		 * Add Plugins...
-		*/
-	
-		$plugin_path = $path . 'plugins' . APHPH_DS;
-		$plugin_used = array();
-		
-		// line-numbers						
-		if (@$options['gutter']) {
-			$scripts .= file_get_contents($plugin_path . 'line-numbers' . APHPH_DS .'prism-line-numbers.min.js') . ';';
-			$plugin_used[] = 'line-numbers';
-		}
-		
-		// show-invisibles	
-		if (@$options['show-hidden-char']) {
-			$scripts .= file_get_contents($plugin_path . 'show-invisibles' . APHPH_DS .'prism-show-invisibles.min.js') . ';';
-			$plugin_used[] = 'show-invisibles';
-		}
-		
-		//show-language
-		if (@$options['show-lang']) {
-			$scripts .= file_get_contents($plugin_path . 'show-language' . APHPH_DS .'prism-show-language.min.js') . ';';
-			$plugin_used[] = 'show-language';
-		}
-		
-		// autolinker
-		if (@$options['auto-links']) {
-			$scripts .= file_get_contents($plugin_path . 'autolinker' . APHPH_DS .'prism-autolinker.min.js') . ';';
-			$plugin_used[] = 'autolinker';
-		}
-		
-		/* Default plugin */
-		// file-highlight	
-		$scripts .= file_get_contents($plugin_path . 'file-highlight' . APHPH_DS .'prism-file-highlight.min.js') . ';';
-		$plugin_used[] = 'file-highlight';
-		
-		// line-highlight	
-		$scripts .= file_get_contents($plugin_path . 'line-highlight' . APHPH_DS .'prism-line-highlight.min.js') . ';';
-		$plugin_used[] = 'line-highlight';
-		
-		/**
-			Script
-		*/	
-		/* Cleanup the directory */
-		$result_path = APHPH_PLUGIN_PATH . APHPH_DS . 'js' . APHPH_DS . 'prism';
-		$files = scandir($result_path);
-		
-		foreach ($files as $file) {
-			if ($file == '.' || $file == '..')
-				continue;
-			unlink ($result_path . APHPH_DS . $file);
-		}
-
-		// We build with time() to make sure the client browser use our lastest build
-		file_put_contents($result_path . APHPH_DS . 'aphph-prism-' . $token . '.js', $scripts);
-		
-		/**
-			Theme
-		*/
-		// Cleanup theme directory
-		$theme_path = APHPH_PLUGIN_PATH . APHPH_DS . 'css' . APHPH_DS . 'prism';
-		$files = scandir($theme_path);
-		
-		foreach ($files as $file) {
-			if ($file == '.' || $file == '..')
-				continue;
-			unlink ($theme_path . APHPH_DS . $file);
-		}
-		
-		// Get theme css
-		$theme_name = $options['theme'] == 'default' ? '' : '-'.$options['theme'];
-		$prism_css = file_get_contents($path . 'themes' . APHPH_DS . 'prism' . $theme_name. '.css');
-		
-		// Get plugins css
-		foreach ($plugin_used as $plugin)
-		{
-			$css_file = $path . 'plugins' . APHPH_DS . $plugin . APHPH_DS . 'prism-' . $plugin . '.css';
-			if (file_exists($css_file))
-			{
-				$prism_css .= "\r\n" . file_get_contents($css_file);
-			}
-		}
-		
-		// ADDITIONAL CSS
-		if ($options['max-height']){
-			$prism_css .= "\r\n" . 
-			'pre.aphph-container {
-	max-height: '.$options['max-height'] .'px;	
-}';
-		}
-		
-		if ($options['add-css']) {
-			$prism_css .= "\r\n" . $options['add-css-value'];
-		}
-		file_put_contents($theme_path . APHPH_DS . 'aphph-prism-' . $token . '.css', $prism_css);
+		$obj = new Aphph_Build;
+		$obj->build_files();
 	}
 }
 

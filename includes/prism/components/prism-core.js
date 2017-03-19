@@ -19,6 +19,7 @@ var lang = /\blang(?:uage)?-(\w+)\b/i;
 var uniqueId = 0;
 
 var _ = _self.Prism = {
+	manual: _self.Prism && _self.Prism.manual,
 	util: {
 		encode: function (tokens) {
 			if (tokens instanceof Token) {
@@ -203,6 +204,9 @@ var _ = _self.Prism = {
 		_.hooks.run('before-sanity-check', env);
 
 		if (!env.code || !env.grammar) {
+			if (env.code) {
+				env.element.textContent = env.code;
+			}
 			_.hooks.run('complete', env);
 			return;
 		}
@@ -289,7 +293,7 @@ var _ = _self.Prism = {
 				pattern = pattern.pattern || pattern;
 
 				// Don’t cache length as it changes during the loop
-				for (var i=0, pos = 0; i<strarr.length; pos += (strarr[i].matchedStr || strarr[i]).length, ++i) {
+				for (var i=0, pos = 0; i<strarr.length; pos += strarr[i].length, ++i) {
 
 					var str = strarr[i];
 
@@ -321,7 +325,7 @@ var _ = _self.Prism = {
 						    p = pos;
 
 						for (var len = strarr.length; k < len && p < to; ++k) {
-							p += (strarr[k].matchedStr || strarr[k]).length;
+							p += strarr[k].length;
 							// Move the index i to the element in strarr that is closest to from
 							if (from >= p) {
 								++i;
@@ -409,7 +413,7 @@ var Token = _.Token = function(type, content, alias, matchedStr, greedy) {
 	this.content = content;
 	this.alias = alias;
 	// Copy of the full string this token was created from
-	this.matchedStr = matchedStr || null;
+	this.length = (matchedStr || "").length|0;
 	this.greedy = !!greedy;
 };
 
@@ -445,11 +449,9 @@ Token.stringify = function(o, language, parent) {
 
 	_.hooks.run('wrap', env);
 
-	var attributes = '';
-
-	for (var name in env.attributes) {
-		attributes += (attributes ? ' ' : '') + name + '="' + (env.attributes[name] || '') + '"';
-	}
+	var attributes = Object.keys(env.attributes).map(function(name) {
+		return name + '="' + (env.attributes[name] || '').replace(/"/g, '&quot;') + '"';
+	}).join(' ');
 
 	return '<' + env.tag + ' class="' + env.classes.join(' ') + '"' + (attributes ? ' ' + attributes : '') + '>' + env.content + '</' + env.tag + '>';
 
@@ -482,7 +484,7 @@ var script = document.currentScript || [].slice.call(document.getElementsByTagNa
 if (script) {
 	_.filename = script.src;
 
-	if (document.addEventListener && !script.hasAttribute('data-manual')) {
+	if (document.addEventListener && !_.manual && !script.hasAttribute('data-manual')) {
 		if(document.readyState !== "loading") {
 			if (window.requestAnimationFrame) {
 				window.requestAnimationFrame(_.highlightAll);

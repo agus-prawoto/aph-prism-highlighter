@@ -1,0 +1,15 @@
+.aph-console {
+    background: #131313;
+    padding: 10px 20px;
+    color: #CACACA;
+    display: block;
+    font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+    white-space: pre-wrap;
+    white-space: -moz-pre-wrap;
+    white-space: -o-pre-wrap;
+    white-space: -pre-wrap;
+    word-wrap: break-word;
+    line-height: 25px;
+    font-size: 95%;
+    text-align: left
+}

@@ -1,6 +1,6 @@
 <?php
 
-class Aphsh_Front 
+class Aphph_Front 
 {
 	private $options;
 	private $regex;
@@ -62,18 +62,32 @@ class Aphsh_Front
 	
 		if ($this->match_post || $this->match_comment)
 		{
-			$css_path = APHPH_PLUGIN_PATH . '/css/prism/aphph-prism-' . $this->options['token'] . '.css';
-			$js_path = APHPH_PLUGIN_PATH . '/js/prism/aphph-prism-' . $this->options['token'] . '.js';
-
+			// New version
+			$upload_dir = wp_upload_dir();
+			$path = $upload_dir['basedir'] . APHPH_DS . 'aphph';
+			
+			$css_path = $upload_dir['basedir'] . '/aphph/aphph-prism-' . $this->options['token'] . '.css';
+			$js_path = $upload_dir['basedir'] . '/aphph/aphph-prism-' . $this->options['token'] . '.js';
+			
 			if (!file_exists($css_path) || !file_exists($js_path))
 			{
-				require_once 'aphph-admin.php';
-				$obj = new Aphph_Admin();
+				require_once 'aphph-build.php';
+				$obj = new Aphph_Build;
 				$obj->build_files();
 			}
 			
-			wp_enqueue_script( 'aphsh-prism-js', APHPH_PLUGIN_URL . '/js/prism/aphph-prism-' . $this->options['token'] . '.js' );
-			wp_enqueue_style( 'aphsh-prism-css', APHPH_PLUGIN_URL . '/css/prism/aphph-prism-' . $this->options['token'] . '.css' );
+			// $css_path = APHPH_PLUGIN_PATH . '/css/prism/aphph-prism-' . $this->options['token'] . '.css';
+			// $js_path = APHPH_PLUGIN_PATH . '/js/prism/aphph-prism-' . $this->options['token'] . '.js';
+
+			// if (!file_exists($css_path) || !file_exists($js_path))
+			// {
+				// require_once 'aphph-admin.php';
+				// $obj = new Aphph_Admin();
+				// $obj->build_files();
+			// }
+			
+			wp_enqueue_script( 'aphsh-prism-js',  $upload_dir['baseurl'] . '/aphph/aphph-prism-' . $this->options['token'] . '.js' );
+			wp_enqueue_style( 'aphsh-prism-css',  $upload_dir['baseurl'] . '/aphph/aphph-prism-' . $this->options['token'] . '.css' );
 		}
 	}
 	
@@ -139,7 +153,7 @@ class Aphsh_Front
 			
 			/* Translate the css value into prism */
 			$exp = explode(' ', $fixed_class);
-			
+			$language = '';
 			foreach ($exp as $key => $class_item)
 			{
 				$split = explode(':', $class_item);
@@ -151,7 +165,13 @@ class Aphsh_Front
 				
 				// language
 				if ($param == 'lang') {
-					$codetag_class = 'language-' . $value;
+					if (strpos($value, 'add') !== false) {
+						$language = $value;
+						$pretag_class['aphph-'.$value] = 'aphph-'.$value;
+						$codetag_class = 'aphph-' . $value;
+					} else {
+						$codetag_class = 'language-' . $value;
+					}
 				}
 				
 				// highlight
@@ -160,7 +180,6 @@ class Aphsh_Front
 				}
 				
 				// class-name
-				
 				elseif ($param == 'class')
 				{
 					$pretag_class['add'] = $value;
@@ -188,12 +207,18 @@ class Aphsh_Front
 			/* Clean up $pretag_class
 			 * Currently we can't combine line highlight with show line numbers
 			 * so if the line highlight is active, we disable the show line numbers
+			 * also we don't add line number form plain language
 			*/
+			if (strpos($language, 'add') !== false) {
+				unset($pretag_class['line-number']);
+			}
+			
 			if(key_exists('mark', $pretag_data))
 				unset($pretag_class['line-number']);
 			
 			if(!key_exists('line-number', $pretag_class))
 				unset($pretag_data['start-line-number']);
+						
 			
 			// Add data- atttribute
 			if ($pretag_data) {

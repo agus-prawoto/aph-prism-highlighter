@@ -2,8 +2,8 @@
 Contributors: agusph
 Tags: prism, syntax, highlighter, syntax highlighter
 Requires at least: 3.5
-Tested up to: 4.6
-Stable tag: 1.1.1
+Tested up to: 4.7
+Stable tag: 1.2
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -53,6 +53,12 @@ This new button also can be found at the quick tags of comment editor in the Adm
 5. Quick Tags in the admin edit comments page
 
 == Changelog ==
+
+= 1.2 (March 18, 2017) = 
+
+* Add language: dark plain and light plain
+* Move compiled javascript and css files to wp-content/uploads/aphph
+* Update prism core
 
 = 1.1.1 (September 26, 2016) = 
 

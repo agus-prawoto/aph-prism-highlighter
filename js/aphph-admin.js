@@ -20,9 +20,17 @@
 			// Change state from unchecked to checked
 			if ($this.is(':checked'))
 			{
+				var prefix = lang.substr(0,3);
 				// Check dependency
-				var lang_component = prism_components.languages[lang],
-					lang_required = [],
+				
+				if (prefix == 'add') {
+					var lang_component = {};
+					lang_component.require = undefined;
+				} else {
+					var lang_component = prism_components.languages[lang];
+				}
+				
+				var lang_required = [],
 					curr_lang = {'lang':lang, 'lang_name': lang_name};
 				
 				// Save dependency fo build later				
@@ -53,7 +61,7 @@
 				
 				// Build
 				if (!lang_required.length)
-				{ 
+				{
 					// Reverse the order of dependency
 					reverse = [];
 					for (k = lang_tobe_checked.length - 1; k >= 0 ;k--)
