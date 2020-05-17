@@ -168,9 +168,11 @@ class Aphph_Front
 					if (strpos($value, 'add') !== false) {
 						$language = $value;
 						$pretag_class['aphph-'.$value] = 'aphph-'.$value;
-						$codetag_class = 'aphph-' . $value;
+                        $codetag_class = 'aphph-' . $value;
+                        $lang_name = $value;
 					} else {
-						$codetag_class = 'language-' . $value;
+                        $codetag_class = 'language-' . $value;
+                        $lang_name = $value;
 					}
 				}
 				
@@ -241,7 +243,7 @@ class Aphph_Front
 			 * Bulid Code
 			*/
 			$content = preg_replace('/('.$pre_tag.')(.*)(<\s*\/pre\s*>)/isU', 
-									$new_pre_tag . '<code class="'.$codetag_class.'">$2</code></pre>',
+									$new_pre_tag . '<code  rel="'.$lang_name.'" class="'.$codetag_class.'">$2</code></pre>',
 									$content);
 		}
 		return $content;	
